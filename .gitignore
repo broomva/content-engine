@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Generated content (tracked per-campaign, not globally)
+output/
+
+# Session state (contains auth tokens)
+.content-engine/
+
+# Compiled knowledge (generated, not source — recompile from raw/)
+knowledge/compiled/brands/*.md
+knowledge/compiled/characters/*.md
+knowledge/compiled/styles/*.md
+!knowledge/compiled/brands/.gitkeep
+!knowledge/compiled/characters/.gitkeep
+!knowledge/compiled/styles/.gitkeep
+
+# Raw assets (large files — use git-lfs or keep local)
+# Uncomment if you don't want raw assets in git:
+# knowledge/raw/brand-assets/**/*.png
+# knowledge/raw/brand-assets/**/*.jpg
+# knowledge/raw/character-refs/**/*.png
+# knowledge/raw/character-refs/**/*.jpg
+
+# Temp files
+*.tmp
+*.bak
