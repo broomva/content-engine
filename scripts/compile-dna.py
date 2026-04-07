@@ -124,7 +124,7 @@ Return ONLY valid JSON, no markdown.""",
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=[
                 {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(image_data).decode()}},
                 prompt,
@@ -417,7 +417,7 @@ tools: [nano-banana-pro, soul-cinema, weavy, comfyui]
 - **Compiled**: {now}
 - **Source hash**: {data['hash']}
 - **Assets analyzed**: {len(analyses)}/{len(data['assets'])}
-- **Analysis model**: gemini-2.5-flash-preview-04-17
+- **Analysis model**: gemini-2.5-flash
 """
     return md
 
