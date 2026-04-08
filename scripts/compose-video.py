@@ -529,9 +529,16 @@ def main():
     if args.backend == "higgsfield":
         hf_key = os.environ.get("HF_KEY")
         if not hf_key:
-            print("ERROR: HF_KEY not set. Get your API key from https://cloud.higgsfield.ai/api-keys")
-            print("  export HF_KEY='your-key-id:your-key-secret'")
-            sys.exit(1)
+            # Try constructing from separate ID + SECRET
+            hf_id = os.environ.get("HF_KEY_ID")
+            hf_secret = os.environ.get("HF_KEY_SECRET")
+            if hf_id and hf_secret:
+                os.environ["HF_KEY"] = f"{hf_id}:{hf_secret}"
+            else:
+                print("ERROR: HF_KEY not set. Get your API key from https://cloud.higgsfield.ai/api-keys")
+                print("  export HF_KEY='your-key-id:your-key-secret'")
+                print("  or: export HF_KEY_ID='...' && export HF_KEY_SECRET='...'")
+                sys.exit(1)
 
     # Generate clips
     clips = []
