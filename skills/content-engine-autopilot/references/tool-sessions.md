@@ -266,3 +266,54 @@ Firebase-based tools auto-refresh tokens in active browser sessions. For batch m
 3. **Rotation**: Delete session files for tools you no longer use
 4. **Shared machines**: Never save sessions on shared or multi-user systems without encryption
 5. **Audit**: The `.session-meta.json` provides a log of when sessions were created and last used
+
+## Higgsfield via Arc CDP
+
+Browser-based Playwright login to Higgsfield does not work reliably. Google OAuth is blocked in automated contexts, and Clerk (their auth provider) rate-limits email/password attempts from headless browsers. The Higgsfield API exists but requires separate top-up credits — subscription credits are web-only and cannot be used via API.
+
+The working approach is to use Arc browser with Chrome DevTools Protocol (CDP) remote debugging, then connect the agent to the user's live browser session.
+
+### Setup
+
+The user must launch Arc with the remote debugging port enabled:
+
+```bash
+osascript -e 'quit app "Arc"' && sleep 2 && /Applications/Arc.app/Contents/MacOS/Arc --remote-debugging-port=9222 &
+```
+
+This kills any existing Arc instance and restarts it with CDP on port 9222. The user then logs into Higgsfield manually in Arc (Google OAuth works in a real browser).
+
+### Agent Connection
+
+Once the user is logged into Higgsfield in Arc, the agent connects via:
+
+```bash
+agent-browser --cdp 9222 open "https://higgsfield.ai/cinema-studio"
+```
+
+The `--cdp 9222` flag tells agent-browser to attach to the existing Arc session rather than launching a new browser. This inherits the user's authenticated cookies, bypassing the OAuth/Clerk issues entirely.
+
+### Cinema Studio 2.5 Workflow
+
+| Property | Value |
+|----------|-------|
+| URL | `https://higgsfield.ai/cinema-studio` |
+| Credit cost | 8 credits per generation |
+| Generation time | ~4-5 minutes |
+| Input method | Text prompt in textbox, click GENERATE button |
+| Completion detection | Poll page via snapshot until video thumbnail appears |
+
+**Generation loop:**
+1. Navigate to Cinema Studio
+2. Enter prompt in the textbox
+3. Click the GENERATE button
+4. Poll for completion by taking periodic snapshots (~30s intervals)
+5. When the video thumbnail or download link appears, generation is complete
+6. Download or screenshot the result
+
+### Limitations
+
+- Arc must remain open during the entire generation session — closing it kills the CDP connection
+- Only one agent can connect to port 9222 at a time
+- If Arc crashes or the user navigates away from Cinema Studio, the agent loses context
+- Credit balance is not exposed via API; the agent must read it from the page UI

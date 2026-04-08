@@ -209,3 +209,67 @@ contemplative silence, slow push-in,
 shot on ARRI Alexa 65, 21mm wide angle lens, 2.39:1 anamorphic,
 awe, solitude, insignificance
 ```
+
+## Validated Composition Strategies (April 2026)
+
+Findings from hands-on production sessions using Google's Imagen 4.0 + Veo 3.0 pipeline.
+
+### Start-Frame Doctrine: PROVEN
+
+The Start-Frame Doctrine (described above) has been validated end-to-end with the Imagen 4.0 keyframe + Veo 3.0 image-to-video pipeline. The results are dramatically better than text-to-video alone. Text-to-video produces generic, flat output; image-to-video with a crafted keyframe locks composition, lighting, and identity from the first frame.
+
+The workflow is:
+
+```
+1. Generate keyframe via Imagen 4.0 (imagen-4.0-generate-001)
+   → Returns high-resolution PNG, fast and cheap
+2. Analyze keyframe via Gemini (gemini-2.5-flash, not preview models)
+   → Confirms composition, lighting, subject fidelity
+3. Feed keyframe + motion prompt into Veo 3.0 (image-to-video)
+   → Veo animates the frame; motion prompt describes ONLY camera movement
+```
+
+### Image Prompt: 5-Component Priority Order
+
+The image prompt (for keyframe generation) must contain five components in strict priority order. This order is load-bearing — dropping lower-priority components is acceptable, but reordering or omitting higher-priority ones produces poor results:
+
+1. **Subject** — who/what, with specific physical details
+2. **Composition** — camera angle, framing, depth of field, rule-of-thirds placement
+3. **Lighting** — named setup, direction, color temperature, shadow behavior
+4. **Environment** — setting, atmosphere, background treatment, depth cues
+5. **Technical** — film stock, lens focal length + aperture, aspect ratio, grain/texture
+
+### Motion Prompt: Camera Movement ONLY
+
+When feeding a keyframe into Veo 3.0 image-to-video, the motion prompt must describe ONLY camera movement. Never re-describe the scene content, lighting, composition, or subject appearance. The keyframe already contains all of that information. Re-describing it confuses the model and degrades output quality.
+
+Good motion prompts:
+- `"Slow dolly forward, gentle drift left"`
+- `"Steady crane up revealing the horizon"`
+- `"Subtle handheld micro-movements, breathing camera"`
+
+Bad motion prompts:
+- `"A woman in a charcoal coat walks through a neon-lit Tokyo alley with rain..."` (re-describing the scene)
+
+### Veo 3.0 API: Technical Details
+
+**Image input format:** The keyframe must be passed as `types.Image(image_bytes=bytes, mime_type='image/png')`. Do not pass a PIL Image object or a `Part` wrapper — Veo expects the raw Image type with bytes.
+
+**`person_generation` parameter:** This parameter must be OMITTED entirely for image-to-video calls. Including it (even set to `"allow_adult"`) causes the Veo API to reject the request. It is only valid for text-to-video.
+
+**Rate limits (free tier):** Approximately 5-6 video generations per day. Plan shot lists accordingly — generate all keyframes first (unlimited), review and select, then spend the video budget on the best frames.
+
+### Model Selection
+
+| Task | Model | Notes |
+|------|-------|-------|
+| Keyframe generation | `imagen-4.0-generate-001` | High-res PNG, fast, cheap. Use for all start frames. |
+| Keyframe analysis | `gemini-2.5-flash` | Use the stable release, not preview models. Analyzes composition/lighting fidelity. |
+| Image-to-video | Veo 3.0 | Feed keyframe as `types.Image`. Omit `person_generation`. Motion prompt = camera only. |
+| Text-to-video | Veo 3.0 | Fallback only. Always prefer image-to-video with a keyframe. |
+
+### Production Implications
+
+- **Budget your video generations.** At 5-6 per day on free tier, each Veo call is precious. Never send a keyframe you have not reviewed.
+- **Keyframes are cheap.** Generate 4-8 candidate keyframes via Imagen, select the best, then animate. This is the core efficiency of the Start-Frame Doctrine.
+- **Gemini analysis as quality gate.** Before spending a Veo generation, run the keyframe through `gemini-2.5-flash` to verify composition matches intent. This catches misaligned framing before it costs a video slot.

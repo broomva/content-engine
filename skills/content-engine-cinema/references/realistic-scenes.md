@@ -267,3 +267,70 @@ The hardest problem in AI content production is making the same character look l
 - [ ] Clothing details match the wardrobe spec (no random additions)
 - [ ] Face swap applied with consistent masking (same feather radius, same blend mode)
 - [ ] Final review: place all scene outputs in a grid and check for any character that "drifts"
+
+## Multi-Shot Narrative Continuity
+
+Producing a coherent multi-shot video sequence (e.g., a 30-second narrative with 4-6 shots) requires a deliberate production strategy. Naive approaches fail predictably.
+
+### Proven Failure Mode: Text-to-Video Stitching
+
+Generating individual shots via text-to-video and stitching them together produces visually disconnected clips. Each generation rolls its own interpretation of lighting, color grade, character appearance, and environment. Even with identical prompt language, text-to-video introduces enough variance that the cuts feel like different films spliced together.
+
+### Working Method: Start-Frame Doctrine + Image-to-Video
+
+The Start-Frame Doctrine (see [cinematic-prompting.md](cinematic-prompting.md)) solves multi-shot continuity. By generating a keyframe image for each shot first, you lock the visual identity, lighting, and color grade before animation. Image-to-video then animates each keyframe while preserving the locked visual properties.
+
+This produces shots that share a coherent visual language because the keyframes were designed together, not independently hallucinated by a video model.
+
+### Multi-Shot Production Workflow
+
+```
+Phase 1 — Storyboard
+  Define both image_prompt (5-component) and motion_prompt (camera only) per shot.
+  The compose-video.py --concept flag auto-generates storyboards via Gemini.
+
+Phase 2 — Keyframe Generation (batch, cheap, fast)
+  Generate ALL keyframes for the entire sequence first via Imagen 4.0.
+  Generate 4-8 candidates per shot. Select the best.
+  Review the full set of selected keyframes AS A SEQUENCE:
+    - Consistent lighting direction across shots?
+    - Consistent color palette?
+    - Character appearance stable?
+    - Environment details coherent?
+  This review is critical. Fix keyframes before animating.
+
+Phase 3 — Animation (sequential, expensive, slow)
+  Feed each approved keyframe into Veo 3.0 image-to-video.
+  Motion prompt = camera movement ONLY.
+  Budget: ~5-6 Veo generations/day on free tier.
+
+Phase 4 — Assembly
+  Stitch shots via ffmpeg or Remotion.
+  Apply consistent color grade across all clips.
+  Add audio/sound design.
+```
+
+### Storyboard Shot Definition
+
+Each shot in the storyboard should define:
+
+```yaml
+shot_number: 1
+image_prompt: |
+  [Subject], [Composition], [Lighting], [Environment], [Technical]
+motion_prompt: |
+  [Camera movement only — e.g., "slow dolly forward, gentle drift right"]
+duration_seconds: 4
+transition: "cut"  # or "dissolve", "match-cut"
+audio_cue: "ambient rain, distant traffic"
+```
+
+### Continuity Techniques
+
+**Keyframe-first review:** The cheapest and most effective continuity tool. Lay out all selected keyframes in sequence order and review them as a filmstrip before spending any video generation budget. Fix lighting, color, and character issues at the keyframe stage where iteration is free.
+
+**Last-frame extraction:** You can extract the last frame of a generated video via ffmpeg (`ffmpeg -sseof -1 -i clip.mp4 -frames:v 1 last_frame.png`) and use it as a reference for the next shot's keyframe. However, image-to-video with a purpose-built keyframe produces better results than last-frame chaining, which compounds drift and artifacts.
+
+**Consistent technical spec:** Use the same film stock, lens, and aspect ratio across all shots in the storyboard. Mixing technical specs (e.g., one shot on "Kodak Vision3 500T" and the next on "ARRI LogC") produces subtle but noticeable visual discontinuity.
+
+**Color grade in post:** Even with consistent keyframes, minor color variations will exist between generated clips. Apply a unified color grade (LUT or manual) across all shots in the assembly phase to smooth these out.
