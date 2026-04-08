@@ -475,6 +475,10 @@ def main():
     parser.add_argument("--aspect-ratio", default="16:9", help="Aspect ratio (default: 16:9)")
     parser.add_argument("--duration", type=int, default=8, help="Duration per shot in seconds")
     parser.add_argument("--output", help="Output directory (default: auto-generated)")
+    parser.add_argument("--captions", action="store_true",
+                        help="Generate OpenCaptions CWI captions for each clip")
+    parser.add_argument("--remotion", action="store_true",
+                        help="Render final video with Remotion (transitions, captions, brand)")
     parser.add_argument("--dry-run", action="store_true", help="Show storyboard without generating")
     args = parser.parse_args()
 
@@ -581,6 +585,70 @@ def main():
         final_path = output_dir / f"{slug}-final.mp4"
         stitch_clips(successful_clips, final_path)
 
+    # OpenCaptions (optional)
+    if args.captions and successful_clips:
+        captions_dir = output_dir / "captions"
+        captions_dir.mkdir(exist_ok=True)
+        print()
+        print("Generating OpenCaptions CWI captions...")
+
+        opencaptions_available = subprocess.run(
+            ["npx", "opencaptions", "doctor"], capture_output=True, timeout=15,
+        ).returncode == 0 if True else False
+
+        try:
+            subprocess.run(["npx", "opencaptions", "doctor"], capture_output=True, timeout=15)
+            opencaptions_available = True
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            opencaptions_available = False
+
+        if opencaptions_available:
+            for clip in successful_clips:
+                cwi_path = captions_dir / f"{clip.stem}.cwi.json"
+                print(f"  Captioning: {clip.name}")
+                try:
+                    subprocess.run(
+                        ["npx", "opencaptions", "generate", str(clip),
+                         "--output", str(cwi_path)],
+                        timeout=120,
+                    )
+                    if cwi_path.exists():
+                        print(f"    Saved: {cwi_path.name}")
+                except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                    print(f"    Caption error: {e}")
+        else:
+            print("  OpenCaptions not installed. Falling back to scene brief text.")
+            print("  Install: cd ~/broomva/apps/opencaptions && bun install")
+            # Write scene brief text as fallback captions
+            for i, clip in enumerate(successful_clips):
+                if i < len(shots):
+                    fallback = {"text": shots[i]["prompt"][:200], "type": "scene-brief"}
+                    fallback_path = captions_dir / f"{clip.stem}.fallback.json"
+                    with open(fallback_path, "w") as f:
+                        json.dump(fallback, f, indent=2)
+
+    # Remotion render (optional)
+    if args.remotion and successful_clips:
+        print()
+        remotion_dir = REPO_ROOT / "remotion"
+        render_script = remotion_dir / "render.sh"
+
+        if render_script.exists():
+            print("Rendering with Remotion (transitions + captions + brand)...")
+            rendered_path = output_dir / f"{slug}-rendered.mp4"
+            try:
+                subprocess.run(
+                    ["bash", str(render_script), str(output_dir), str(rendered_path)],
+                    timeout=300,
+                )
+                if rendered_path.exists():
+                    size = rendered_path.stat().st_size
+                    print(f"  Rendered: {rendered_path.name} ({size:,} bytes)")
+            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                print(f"  Remotion render error: {e}")
+        else:
+            print("Remotion not set up. Run: cd remotion && bun install")
+
     # Write manifest
     write_manifest(output_dir, storyboard, clips, args.brand)
 
@@ -591,6 +659,10 @@ def main():
     if successful_clips:
         total_duration = len(successful_clips) * args.duration
         print(f"Total duration: ~{total_duration}s ({total_duration / 60:.1f} min)")
+    if args.captions:
+        print(f"Captions: {output_dir / 'captions'}")
+    if args.remotion:
+        print(f"Rendered: {output_dir / f'{slug}-rendered.mp4'}")
 
 
 if __name__ == "__main__":

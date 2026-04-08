@@ -33,3 +33,4 @@ knowledge/compiled/styles/*.md
 # Temp files
 *.tmp
 *.bak
+.gstack/

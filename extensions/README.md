@@ -183,7 +183,7 @@ reads this file to discover available extensions and their hook points.
 
 | Extension | Hook Point | Status | Description |
 |---|---|---|---|
-| `opencaptions` | post-production | planned | CWI caption generation for video assets |
+| `opencaptions` | post-production | active | CWI intent-driven caption generation for video assets |
 | | | | |
 
 > Add new extensions to this table when they are created. The content engine
