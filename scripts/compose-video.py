@@ -286,6 +286,97 @@ def extract_last_frame(video_path: Path, output_path: Path) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
+# Higgsfield Backend
+# ---------------------------------------------------------------------------
+
+def generate_clip_higgsfield(prompt: str, shot_index: int, output_dir: Path,
+                              aspect_ratio: str = "16:9",
+                              reference_image: Path | None = None) -> Path | None:
+    """Generate a video clip via Higgsfield API (Seedance/DOP models)."""
+    import higgsfield_client
+
+    print(f"  Generating clip {shot_index + 1} via Higgsfield...")
+
+    if reference_image and reference_image.exists():
+        # Image-to-video mode
+        try:
+            from PIL import Image
+            img = Image.open(reference_image)
+            image_url = higgsfield_client.upload_image(img)
+            print(f"    Uploaded reference image: {reference_image.name}")
+
+            result = higgsfield_client.subscribe(
+                "/v1/image2video/dop",
+                {
+                    "input": {
+                        "model": "dop-turbo",
+                        "prompt": prompt,
+                        "input_images": [{"type": "image_url", "image_url": image_url}],
+                    }
+                },
+                on_queue_update=lambda s: print(f"    Status: {s}"),
+            )
+        except ImportError:
+            print("    WARNING: Pillow not installed for image upload, falling back to text-to-video")
+            reference_image = None
+
+    if not reference_image or not reference_image.exists():
+        # Text-to-video: generate start frame, then animate
+        print(f"    Step 1: Generating start frame...")
+        result = higgsfield_client.subscribe(
+            "bytedance/seedream/v4/text-to-image",
+            {
+                "prompt": prompt,
+                "resolution": "2K",
+                "aspect_ratio": aspect_ratio,
+            },
+            on_queue_update=lambda s: print(f"    Status: {s}"),
+        )
+
+        # Get the image URL and convert to video
+        if result and "images" in result and result["images"]:
+            image_url = result["images"][0].get("url")
+            if image_url:
+                print(f"    Step 2: Animating start frame...")
+                result = higgsfield_client.subscribe(
+                    "/v1/image2video/dop",
+                    {
+                        "input": {
+                            "model": "dop-turbo",
+                            "prompt": prompt,
+                            "input_images": [{"type": "image_url", "image_url": image_url}],
+                        }
+                    },
+                    on_queue_update=lambda s: print(f"    Status: {s}"),
+                )
+
+    # Download result
+    if result:
+        video_url = None
+        # Try different result formats
+        if isinstance(result, dict):
+            if "url" in result:
+                video_url = result["url"]
+            elif "video" in result and isinstance(result["video"], dict):
+                video_url = result["video"].get("url")
+            elif "jobs" in result:
+                jobs = result["jobs"]
+                if jobs and isinstance(jobs[0], dict):
+                    raw = jobs[0].get("results", {}).get("raw", {})
+                    video_url = raw.get("url")
+
+        if video_url:
+            out_path = output_dir / f"shot_{shot_index + 1:02d}.mp4"
+            urllib.request.urlretrieve(video_url, str(out_path))
+            size = out_path.stat().st_size
+            print(f"    Saved: {out_path.name} ({size:,} bytes)")
+            return out_path
+
+    print(f"    Could not extract video URL from result")
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Stitching
 # ---------------------------------------------------------------------------
 
@@ -436,12 +527,13 @@ def main():
     print()
 
     if args.backend == "higgsfield":
-        print("ERROR: Higgsfield backend requires browser session.")
-        print("  Run: /content-engine autopilot setup higgsfield")
-        print("  Then: python3 scripts/compose-video.py storyboard.md --backend higgsfield")
-        sys.exit(1)
+        hf_key = os.environ.get("HF_KEY")
+        if not hf_key:
+            print("ERROR: HF_KEY not set. Get your API key from https://cloud.higgsfield.ai/api-keys")
+            print("  export HF_KEY='your-key-id:your-key-secret'")
+            sys.exit(1)
 
-    # Generate clips via Veo
+    # Generate clips
     clips = []
     last_frame = None
 
@@ -450,14 +542,23 @@ def main():
         if brand_dna:
             prompt = inject_brand_into_prompt(prompt, brand_dna)
 
-        clip = generate_clip_veo(
-            prompt=prompt,
-            shot_index=i,
-            output_dir=output_dir,
-            aspect_ratio=args.aspect_ratio,
-            duration=args.duration,
-            reference_frame=last_frame,
-        )
+        if args.backend == "higgsfield":
+            clip = generate_clip_higgsfield(
+                prompt=prompt,
+                shot_index=i,
+                output_dir=output_dir,
+                aspect_ratio=args.aspect_ratio,
+                reference_image=last_frame,
+            )
+        else:
+            clip = generate_clip_veo(
+                prompt=prompt,
+                shot_index=i,
+                output_dir=output_dir,
+                aspect_ratio=args.aspect_ratio,
+                duration=args.duration,
+                reference_frame=last_frame,
+            )
         clips.append(clip)
 
         # Extract last frame for continuity
