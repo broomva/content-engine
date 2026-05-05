@@ -1,6 +1,6 @@
 ---
 name: content-engine-cinema
-description: "Cinematic Generation Layer — the taste and technique library for premium AI content. Codifies start-frame doctrine, camera style vocabulary (Anderson/Fincher/Nolan/Villeneuve/Kubrick), node pipeline architecture, scene generation formulas, and 25+ design styles with exact prompts. Provides tool priority matrix and three generation modes (API-first, browser-automated, local pipeline). Triggers on: 'generate content', 'cinematic', 'create scene', 'start frame', 'style library', 'generate campaign', 'AI filmmaking'."
+description: "Cinematic Generation Layer — the taste and technique library for premium AI content. Codifies start-frame doctrine, camera style vocabulary (Anderson/Fincher/Nolan/Villeneuve/Kubrick), node pipeline architecture, scene generation formulas, and 25+ design styles with exact prompts. Tier-1 generation via Higgsfield CLI (30+ models — Soul V2, Nano Banana 2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2, Marketing Studio). Triggers on: 'generate content', 'cinematic', 'create scene', 'start frame', 'style library', 'generate campaign', 'AI filmmaking', 'higgsfield generate', 'soul cinema', 'marketing studio'."
 ---
 
 # Cinematic Generation Layer
@@ -91,26 +91,77 @@ Three tiers based on quality, speed, and cost. Always prefer the highest availab
 
 | Priority | Image Gen | Video Gen | Upscaling | Color Grade |
 |----------|-----------|-----------|-----------|-------------|
-| **Tier 1: API-first** | Nano Banana 2 (`@google/genai`) | Veo 3.1 (`@google/genai`) | Topaz Gigapixel CLI | Lightroom (preset batch) |
+| **Tier 1: Higgsfield CLI** (default) | `higgsfield-generate --model soul_v2 / nano_banana_2 / flux_2` | `higgsfield-generate --model veo_3 / kling_3 / seedance_2` | Topaz Gigapixel CLI | Lightroom (preset batch) |
+| **Tier 1 (alternates)** | Nano Banana 2 (`@google/genai`) | Veo 3.1 (`@google/genai`) | — | — |
 | **Tier 2: Browser-automated** | Midjourney (via browser) | Kling 3 Pro (via fal.ai) | Topaz web UI | DaVinci Resolve |
 | **Tier 3: Local pipeline** | ComfyUI + SD/Flux | ComfyUI + Wan/AnimateDiff | Real-ESRGAN CLI | ffmpeg + LUT files |
 
+**Why Higgsfield CLI is the default Tier 1:** a single CLI auths once and exposes 30+ models (Soul V2, Nano Banana 2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2, GPT Image 2, Marketing Studio). One credit pool, one auth flow, scriptable from Claude Code. Higgsfield's own guidance: "If you are using Claude Code or Codex, it's better to use the CLI" — confirmed by the bundled `higgsfield-generate`, `higgsfield-product-photoshoot`, `higgsfield-soul-id` skill wrappers.
+
 ### Generation Modes
 
-**API-first mode** (fastest, scalable):
-- Use `@google/genai` SDK for Nano Banana image gen and Veo 3.1 video gen
-- Use `@fal-ai/client` for multi-provider access (Kling, Sora, Flux)
-- Best for: batch generation, automated pipelines, CI/CD content
+**Mode 1: Higgsfield-first** (default — recommended for agent workflows):
+- One CLI, 30+ models. Auth once via `higgsfield auth login`.
+- **Image generation:**
+  - Cinematic editorial / lifestyle: `higgsfield-generate --model soul_v2 --prompt "..."`
+  - Character consistency / multi-angle: `higgsfield-generate --model nano_banana_2 --prompt "..."`
+  - General photoreal: `higgsfield-generate --model flux_2 --prompt "..."`
+  - Product photoshoot: invoke `higgsfield-product-photoshoot` skill (mode-specific brand-quality enhancement)
+- **Video generation (start-frame first):**
+  - Premium: `higgsfield-generate --model veo_3 --image <upload_id> --prompt "..."`
+  - Cinematic motion: `higgsfield-generate --model kling_3 --image <upload_id>`
+  - Multi-shot storytelling: `higgsfield-generate --model seedance_2 --image <upload_id>`
+- **Soul Character training** for face/identity locking across a series: invoke `higgsfield-soul-id` skill.
+- **Marketing Studio** for branded ads with avatar + product: `higgsfield-generate --model marketing_studio_video`.
+- Best for: 90% of cinematic generation work. Skip the other modes unless you specifically need a model Higgsfield doesn't expose.
 
-**Browser-automated mode** (highest quality ceiling):
-- Use `/agent-browser` to drive Midjourney, Kling, or other web-only tools
-- Use `/gstack` for headless browser-based generation
-- Best for: hero images, campaign keyframes, one-off premium assets
+**Mode 2: Direct provider APIs** (fallback when Higgsfield is missing a model):
+- `@google/genai` SDK for Nano Banana, Veo 3.1, Imagen
+- `@fal-ai/client` for Kling, Sora, alternative Flux variants
+- Use when: a specific provider exposes a model Higgsfield hasn't bundled, or when you want provider-direct billing
 
-**Local pipeline mode** (maximum control):
+**Mode 3: Higgsfield MCP** (for Claude Desktop / web Claude):
+- Add `https://mcp.higgsfield.ai` as a custom connector in Claude settings → Connectors
+- Same 30+ models, same auth, GUI-driven
+- Use when: not running Claude Code or Codex; the CLI path is preferred for those
+
+**Mode 4: Browser-automated** (rare, for tools without API/MCP):
+- Use `/agent-browser` to drive Midjourney, Weavy, Artlist, or other web-only tools
+- Best for: music selection, premium one-offs in tools without programmatic access
+- Note: Higgsfield Studio is now CLI-accessible; do not use the browser path for Higgsfield models anymore
+
+**Mode 5: Local pipeline** (maximum control):
 - ComfyUI with custom node graphs for full pipeline control
 - LoRA training and application for brand-locked output
-- Best for: recurring brand content, character-consistent series, style R&D
+- Best for: brand content where you need bit-exact reproducibility, R&D on custom styles
+
+### Cinema → Higgsfield workflow integration
+
+The compounded workflow when content-engine-cinema dispatches a scene:
+
+```
+Concept (cinema scene brief)
+  ↓
+Camera-style vocabulary picked (Fincher / Nolan / Villeneuve / etc.)
+  ↓
+Style fragment + scene description merged into final prompt
+  ↓
+START FRAME: invoke higgsfield-generate --model soul_v2 (or nano_banana_2)
+             → upload_id captured from output
+  ↓
+[Optional: invoke higgsfield-soul-id if face/identity needs to be locked]
+  ↓
+MOTION: invoke higgsfield-generate --model veo_3 / kling_3 --image <upload_id>
+        → wait for job, capture video_url
+  ↓
+POST-PRODUCE: Topaz Gigapixel for upscale, Lightroom or ffmpeg LUT for grade
+  ↓
+Output to /content-engine/output/{campaign-slug}/raw/
+  ↓
+manifest.json updated with: prompt, model, upload_id, job_id, timestamp, identity_refs
+```
+
+Every node above is a single CLI invocation; no manual browser steps.
 
 ## Design Style Library
 

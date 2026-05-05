@@ -26,13 +26,15 @@ content-engine/
 - **Compiled files** are Markdown with YAML frontmatter and tool-specific prompt sections
 - **Raw assets** are never modified by the LLM — they are the source of truth
 - **Provenance** — every compiled file traces back to its raw sources
-- **Tool-specific prompts** — each compiled file contains prompt fragments for Nano Banana, Soul Cinema, Weavy, etc.
+- **Tool-specific prompts** — each compiled file contains prompt fragments for Higgsfield models (Soul V2, Nano Banana 2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2), Marketing Studio modes, Weavy, etc.
 
 ## Dependencies
 
-- Required: ffmpeg, GEMINI_API_KEY, FAL_KEY
+- Required: ffmpeg, GEMINI_API_KEY (analysis only)
+- Tier-1 generation: **higgsfield CLI** (`curl -fsSL https://raw.githubusercontent.com/higgsfield-ai/cli/main/install.sh | sh` then `higgsfield auth login`). Replaces fal.ai + @google/genai as the default path; one CLI, 30+ models.
+- Tier-1 fallback: FAL_KEY (when a model Higgsfield doesn't expose is needed)
 - Optional: Topaz Gigapixel, ComfyUI, agent-browser
-- Compounds: /content-creation, /blog-post, /social-intelligence, /brainrot-for-good, /brand-icons
+- Compounds: /content-creation, /blog-post, /social-intelligence, /brainrot-for-good, /brand-icons, /higgsfield-generate, /higgsfield-product-photoshoot, /higgsfield-soul-id
 
 ## Design Spec
 

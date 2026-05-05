@@ -1,6 +1,6 @@
 ---
 name: content-engine
-description: "Full-stack AI content studio — orchestrates visual DNA compilation, cinematic generation, browser-automated tool execution, and multi-platform distribution into a unified content pipeline. Compiles brand identity, character sheets, and style guides into persistent knowledge (Karpathy compile-then-query pattern), then generates premium cinematic content using Nano Banana, Soul Cinema, Weavy, Veo 3.1, and ComfyUI with consistent character identity and intentional visual direction. Triggers on: 'content engine', 'generate campaign', 'compile brand', 'cinematic content', 'AI content studio', 'batch generate', 'content pipeline', 'visual DNA', 'character consistency'."
+description: "Full-stack AI content studio — orchestrates visual DNA compilation, cinematic generation (via Higgsfield CLI or MCP), browser-automated tool execution, and multi-platform distribution into a unified content pipeline. Compiles brand identity, character sheets, and style guides into persistent knowledge (Karpathy compile-then-query pattern), then generates premium cinematic content using Higgsfield (30+ models including Soul V2, Nano Banana 2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2), Soul Cinema, Weavy, and ComfyUI with consistent character identity and intentional visual direction. Triggers on: 'content engine', 'generate campaign', 'compile brand', 'cinematic content', 'AI content studio', 'batch generate', 'content pipeline', 'visual DNA', 'character consistency', 'higgsfield', 'marketing studio', 'product photoshoot', 'soul character'."
 ---
 
 # Content Engine
@@ -103,23 +103,59 @@ echo "=== API Keys ==="
 [ -n "$GEMINI_API_KEY" ] && echo "ok GEMINI_API_KEY" || echo "MISSING: needed for Gemini analysis + Veo 3.1"
 [ -n "$FAL_KEY" ] && echo "ok FAL_KEY" || echo "MISSING: needed for Nano Banana 2, Kling via fal.ai"
 echo ""
+echo "=== Higgsfield CLI (recommended for agent workflows) ==="
+which higgsfield && echo "ok higgsfield $(higgsfield version 2>/dev/null | head -1)" || echo "MISSING: curl -fsSL https://raw.githubusercontent.com/higgsfield-ai/cli/main/install.sh | sh"
+echo ""
 echo "=== Browser Automation ==="
 which agent-browser && echo "ok agent-browser" || echo "MISSING: needed for autopilot mode"
 ```
+
+### Higgsfield: two integration paths
+
+Higgsfield offers BOTH a CLI and an MCP. Pick based on your runtime:
+
+| Runtime | Recommended path | Why |
+|---------|------------------|-----|
+| **Claude Code, Codex, agent-browser, scripts** | **higgsfield CLI** + the `higgsfield-*` skills | Per Higgsfield's own guidance: "If you are using Claude Code or Codex, it's better to use the CLI." Direct programmatic access, scriptable, integrates with the skill bundle. |
+| **Claude Desktop, web Claude, IDE plugins** | **Higgsfield MCP** at `https://mcp.higgsfield.ai` | One-click connector; UI-native; no CLI install. Can't be scripted. |
+
+**CLI path (recommended for content-engine):**
+```bash
+# Install
+curl -fsSL https://raw.githubusercontent.com/higgsfield-ai/cli/main/install.sh | sh
+
+# Auth (interactive, opens browser)
+higgsfield auth login
+
+# Verify
+higgsfield account status
+
+# Capabilities exposed via three skill-level wrappers:
+#   higgsfield-generate         — 30+ models (Nano Banana 2, Soul V2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2)
+#   higgsfield-product-photoshoot — Brand-quality product images with mode-specific enhancement
+#   higgsfield-soul-id          — Train Soul Character refs for consistent face/identity
+```
+
+**MCP path (for Claude Desktop):**
+1. Open Claude settings → Connectors → Add custom connector
+2. Name: `Higgsfield`
+3. URL: `https://mcp.higgsfield.ai`
+4. Click Add → Connect → authenticate via Higgsfield account
+
+Both paths use the same Higgsfield credit pool. No API key needed for either; auth is via your Higgsfield account.
 
 ### Optional (enhance quality)
 
 - **Topaz Gigapixel AI** — CLI upscaling (falls back to Real-ESRGAN)
 - **ComfyUI** — Local node-based pipelines with LoRA style-locking
-- **Higgsfield account** — Soul Cinema start frames
 - **Weavy account** — Scene variation with character consistency
 - **Artlist.io** — AI-powered music matching
 
 ### Tool Session Setup
 
-For browser-automated tools, run setup once per tool:
+For browser-automated tools (legacy path; prefer the CLI when available):
 ```
-/content-engine autopilot setup higgsfield
+/content-engine autopilot setup higgsfield   # browser fallback if CLI not available
 /content-engine autopilot setup weavy
 ```
 
@@ -162,13 +198,16 @@ Every compiled file:
 
 ## Tool Priority Matrix
 
-| Task | Best Tool | Fallback | API? |
+| Task | Best Tool | Fallback | Path |
 |------|-----------|----------|------|
-| Cinematic start frame | Soul Cinema (Higgsfield) | Nano Banana Pro | Yes |
-| Character consistency | Nano Banana Pro | SD + LoRA | Yes (fal.ai) |
-| Multi-angle generation | Nano Banana 2 | Weavy | Yes (fal.ai) |
+| Cinematic start frame | Soul Cinema (`higgsfield-generate --model soul_v2`) | Nano Banana Pro | CLI |
+| Character consistency | Nano Banana Pro | SD + LoRA | CLI / fal.ai |
+| Custom face/identity training | `higgsfield-soul-id` (Soul Character training) | LoRA fine-tuning | CLI |
+| Branded product photoshoot | `higgsfield-product-photoshoot` (mode-specific enhancement) | Nano Banana + manual prompt | CLI |
+| Marketing Studio (avatar + product ad) | `higgsfield-generate --model marketing_studio_video` | Veo 3.1 with prompt engineering | CLI |
+| Multi-angle generation | Nano Banana 2 | Weavy | CLI / fal.ai |
 | Scene variation | Weavy | Nano Banana + scene prompt | Browser |
-| Video from keyframe | Veo 3.1 / Seedance 2.0 | Kling | Yes |
+| Video from keyframe | Veo 3.1 / Seedance 2.0 (via `higgsfield-generate`) | Kling | CLI |
 | Motion transfer | Kling | Wan | Browser + ComfyUI |
 | Upscaling | Topaz Gigapixel | Real-ESRGAN | CLI |
 | Color grading | Lightroom | ffmpeg LUT | CLI/Browser |
@@ -177,15 +216,25 @@ Every compiled file:
 
 ## Generation Modes
 
-**Mode 1: API-First** (fastest, programmatic)
-- fal.ai → Nano Banana 2, Kling, Veo
-- @google/genai → Veo 3.1, Gemini image
-- Direct calls from Claude Code, no browser needed
+**Mode 1: API-First** (fastest, programmatic — preferred for agent workflows)
+- **higgsfield CLI** (via `higgsfield-generate`, `higgsfield-product-photoshoot`, `higgsfield-soul-id`) → 30+ models including Soul V2, Nano Banana 2, Veo 3.1, Kling 3.0, Seedance 2.0, Flux 2, GPT Image 2; plus Marketing Studio (avatar + product ad modes); plus Soul Character training
+- fal.ai → Nano Banana 2, Kling, Veo (alternate provider when models overlap)
+- @google/genai → Veo 3.1, Gemini image (Google-native path)
+- All three callable directly from Claude Code, no browser needed
 
-**Mode 2: Browser-Automated** (tools without APIs)
-- Playwright drives Weavy, Higgsfield Studio, Artlist
+**Mode 2: MCP-driven** (for Claude Desktop / IDE plugins)
+- Higgsfield MCP at `https://mcp.higgsfield.ai` — same models, GUI-native auth, can't be scripted from Claude Code
+- ComfyUI MCP (planned extension)
+
+**Mode 3: Browser-Automated** (tools without APIs or MCP)
+- Playwright drives Weavy, Artlist, Soul Cinema (legacy — prefer CLI now)
 - Auth persisted via saved session state
 - Batch generation with organized output
+
+**Mode 4: Local Pipeline** (maximum control)
+- ComfyUI + Stable Diffusion + LoRA
+- Full node-based control over every generation step
+- Topaz CLI for upscaling
 
 **Mode 3: Local Pipeline** (maximum control)
 - ComfyUI + Stable Diffusion + LoRA
@@ -226,6 +275,9 @@ This skill compounds on the existing broomva content ecosystem:
 | `/social-intelligence` | Engagement loop + knowledge extraction |
 | `/brainrot-for-good` | High-retention short-form video |
 | `/brand-icons` | OG images, social cards |
+| `/higgsfield-generate` | 30+ Higgsfield models, Marketing Studio (avatar + product ads) |
+| `/higgsfield-product-photoshoot` | Brand-quality product images with mode-specific enhancement |
+| `/higgsfield-soul-id` | Train Soul Character refs for consistent face/identity |
 | `/agent-browser` | Playwright browser automation |
 | `/arcan-glass` | Brand styling tokens |
 
