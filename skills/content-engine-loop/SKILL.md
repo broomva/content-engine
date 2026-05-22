@@ -24,7 +24,9 @@ The loop does not replace existing skills. It orchestrates them into a coordinat
 ### How They Compound
 
 ```
-INSIGHT (from /social-intelligence)
+LISTEN
+  ├─ INSIGHT (from /social-intelligence)          — post-engagement signals
+  └─ SALES-SUBSTRATE (CRM + transcripts + perf)   — customer-doubt grounded
   │
   ▼
 PLAN (content calendar picks topic + format + platform)
@@ -59,6 +61,16 @@ REFINE
   ├─ Update content calendar pacing based on audience engagement patterns
   └─ Feed refined identity back to next CREATE cycle
 ```
+
+### LISTEN Sources
+
+The LISTEN phase pulls from two complementary inputs. Either source alone can drive content; together they cover the full customer-attention surface.
+
+**INSIGHT — post-engagement signals.** Handled by `/social-intelligence`. Tracks what existing followers respond to: comment themes, repost networks, profile-view bursts, save patterns. Best for refining tone, format, and posting cadence on accounts that already have audience.
+
+**SALES-SUBSTRATE — customer-doubt grounding.** CRM lead lists (segmented by country / sector / size / doubts), sales-call transcripts (Fireflies / Granola / Otter), prospecting notes, per-post performance metrics. Loaded as a single LLM context window — the *"cerebro de la empresa"* — that proposes posts grounded in the doubts customers actually raised on calls, not the doubts the founder imagines. Best for B2B accounts where prospect intent is captured in conversations the audience never sees.
+
+The substrate has one precondition: recording discipline. *"Si no quedó grabado, no pasó."* Whatever isn't transcribed disappears from the substrate, and the model cannot propose posts about it. See the full pattern (mechanism, failure modes, rule-of-three ledger — currently N=1 from Alan Arguello, LinkedIn, 2026-05-22) at `research/entities/pattern/sales-substrate-as-content-fuel.md` in the broomva workspace.
 
 ## Campaign Management
 
